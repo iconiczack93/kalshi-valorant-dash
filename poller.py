@@ -47,7 +47,7 @@ def portfolio():
     except Exception as e:
         out = {"error": str(e)}
     pin = os.environ.get("POSITIONS_PIN")
-    if not pin: return {"plaintext": out}
+    if not pin: return None  # never publish portfolio unencrypted to the public repo
     from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
     from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
