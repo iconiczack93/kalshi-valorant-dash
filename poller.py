@@ -57,6 +57,26 @@ def portfolio():
     return {"enc": True, "salt": base64.b64encode(salt).decode(),
             "iv": base64.b64encode(iv).decode(), "data": base64.b64encode(ct).decode()}
 
+
+# --- VCT-only filter ---
+import re as _re
+_GC_RE = _re.compile(r'\bGC\b|gozen|\bRED\b', _re.I)
+def _norm(t):
+    t = _re.sub(r'esports|gaming|team', ' ', t.lower())
+    return _re.sub(r'[^a-z0-9]+', ' ', t).strip()
+_VCT = {_norm(x) for x in [
+    "100 Thieves","Cloud9","Evil Geniuses","FURIA","G2","KRU","Leviatan","LOUD","MIBR","NRG","Sentinels","2Game",
+    "BBL","Fnatic","FUT","Gentle Mates","GIANTX","Giants","Karmine Corp","KOI","Natus Vincere","NAVI","Heretics","Liquid","Vitality","Apeks",
+    "DRX","DetonatioN FocusMe","Gen.G","Global Esports","Paper Rex","Rex Regum Qeon","T1","Talon","Secret","ZETA DIVISION","Nongshim RedForce","BOOM",
+    "EDward Gaming","EDG","Bilibili","FunPlus Phoenix","JD Gaming","Trace","TYLOO","Wolves","All Gamers","Nova Esports","Titan Esports Club","Attacking Soul",
+]}
+def is_vct(title):
+    title = title.split(':')[0].strip()
+    sides = _re.split(r'\s+vs\.?\s+', title)
+    if len(sides) != 2: return True  # totals/tournament events keyed off game titles elsewhere
+    if any(_GC_RE.search(s) for s in sides): return False
+    return sum(1 for s in sides if _norm(s) in _VCT) == 2
+
 def main():
     events = []
     for s in SERIES:
@@ -65,6 +85,7 @@ def main():
         except Exception as e:
             print(f"error {s}: {e}"); continue
         for e in evs:
+            if e.get("title") and not is_vct(e["title"]): continue
             mkts = []
             for m in e.get("markets", []):
                 bid, ask = f(m, "yes_bid_dollars"), f(m, "yes_ask_dollars")
