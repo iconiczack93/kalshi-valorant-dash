@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Valorant x Kalshi</title>
+<style>
+  :root { --ink:#0d0f12; --panel:#161a20; --line:#232833; --txt:#e8e6e1; --dim:#8a919e; --amber:#ffb340; --teal:#2fd5c8; --red:#ff5a4e; }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--ink); color:var(--txt); font:14px/1.5 -apple-system, "SF Mono", ui-monospace, monospace; padding:24px 16px 64px; max-width:860px; margin:0 auto; }
+  h1 { font-size:20px; letter-spacing:.12em; text-transform:uppercase; }
+  h1 span { color:var(--amber); }
+  .sub { color:var(--dim); font-size:12px; margin:4px 0 20px; }
+  .tabs { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+  .tab { background:var(--panel); border:1px solid var(--line); color:var(--dim); padding:6px 14px; border-radius:20px; cursor:pointer; font:inherit; font-size:12px; }
+  .tab.on { color:var(--ink); background:var(--amber); border-color:var(--amber); font-weight:700; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:12px; }
+  .card h3 { font-size:13px; font-weight:600; }
+  .when { color:var(--dim); font-size:11px; margin-bottom:10px; }
+  .leg { display:grid; grid-template-columns:1fr 90px 52px; align-items:center; gap:10px; padding:5px 0; }
+  .bar { height:8px; background:#0a0c0f; border-radius:4px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:var(--teal); border-radius:4px; }
+  .price { text-align:right; font-weight:700; }
+  .fav { color:var(--amber); } .dog { color:var(--dim); }
+  .spark { display:block; margin-left:auto; }
+  #portfolio .locked { color:var(--dim); font-size:12px; }
+  #portfolio input { background:#0a0c0f; border:1px solid var(--line); color:var(--txt); padding:8px 10px; border-radius:8px; font:inherit; width:120px; }
+  #portfolio button { background:var(--amber); color:var(--ink); border:0; padding:8px 14px; border-radius:8px; font:inherit; font-weight:700; cursor:pointer; }
+  #portfolio table { width:100%; border-collapse:collapse; margin-top:10px; font-size:12px; }
+  #portfolio td, #portfolio th { text-align:left; padding:5px 6px; border-bottom:1px solid var(--line); color:var(--txt); }
+  #portfolio th { color:var(--dim); font-weight:400; }
+  .foot { color:var(--dim); font-size:11px; margin-top:22px; }
+  a { color:var(--teal); text-decoration:none; }
+</style>
+</head>
+<body>
+<h1>Valorant <span>x</span> Kalshi</h1>
+<div class="sub" id="updated">loading...</div>
+<div class="tabs">
+  <button class="tab on" data-s="KXVALORANTGAME">Matches</button>
+  <button class="tab" data-s="KXVALORANTMAP">Maps</button>
+  <button class="tab" data-s="KXVALORANTTOTALMAPS">Totals</button>
+  <button class="tab" data-s="portfolio">Portfolio</button>
+</div>
+<div id="board"></div>
+<div class="card" id="portfolio" style="display:none">
+  <h3>Portfolio</h3>
+  <div class="when">positions &amp; balance, PIN-locked</div>
+  <div id="pbody"><div class="locked" id="plock">no portfolio data published yet</div></div>
+</div>
+<div class="foot">data: kalshi trade api, refreshed every 10 min by github actions · <a href="https://kalshi.com/category/sports/esports/valorant" target="_blank">trade on kalshi</a></div>
+<script>
+let DATA=null, TAB='KXVALORANTGAME';
+const cents = x => x==null ? '-' : Math.round(x*100)+'c';
+const money = x => x==null ? '-' : '$'+(x/100).toFixed(2);
+function spark(pts, w=84, h=20){
+  if(!pts || pts.length<2) return '';
+  const lo=Math.min(...pts), hi=Math.max(...pts), r=(hi-lo)||0.01;
+  const step=w/(pts.length-1);
+  const d=pts.map((p,i)=>(i?'L':'M')+(i*step).toFixed(1)+','+(h-2-((p-lo)/r)*(h-4)).toFixed(1)).join(' ');
+  const up=pts[pts.length-1]>=pts[0];
+  return `<svg class="spark" width="${w}" height="${h}"><path d="${d}" fill="none" stroke="${up?'var(--teal)':'var(--red)'}" stroke-width="1.5"/></svg>`;
+}
+function render(){
+  const b=document.getElementById('board');
+  document.getElementById('portfolio').style.display = TAB==='portfolio' ? 'block':'none';
+  if(TAB==='portfolio'){ b.innerHTML=''; renderPortfolio(); return; }
+  const evs=(DATA.events||[]).filter(e=>e.series===TAB).sort((a,b)=>{
+    const ca=Math.max(...a.markets.map(m=>m.close||''),''), cb=Math.max(...b.markets.map(m=>m.close||''),'');
+    return ca<cb?-1:1;});
+  if(!evs.length){ b.innerHTML='<div class="card"><span class="dog">no open markets in this tab</span></div>'; return; }
+  b.innerHTML=evs.map(e=>{
+    const close=e.markets.map(m=>m.close).sort().pop()||'';
+    const when=close? new Date(close).toLocaleString('en-US',{timeZone:'America/Los_Angeles',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
+    const legs=e.markets.map(m=>{
+      const mid=m.mid, fav=mid!=null&&mid>=0.5;
+      return `<div class="leg"><div class="${fav?'fav':'dog'}">${m.label}</div>
+        <div class="bar"><i style="width:${mid?Math.round(mid*100):0}%"></i></div>
+        <div class="price ${fav?'fav':'dog'}">${cents(mid)}</div></div>
+        ${spark((DATA.history||{})[m.ticker])}`;
+    }).join('');
+    return `<div class="card"><h3>${e.sub||e.title}</h3><div class="when">settles ${when} PT</div>${legs}</div>`;
+  }).join('');
+}
+async function renderPortfolio(){
+  const el=document.getElementById('pbody'); const p=DATA.portfolio;
+  if(!p){ el.innerHTML='<div class="locked">no portfolio data published yet - needs the kalshi key secrets on the repo</div>'; return; }
+  if(p.plaintext){ showPortfolio(p.plaintext); return; }
+  el.innerHTML=`<div class="locked">enter PIN to unlock</div>
+    <div style="margin-top:8px"><input id="pin" type="password" inputmode="numeric" placeholder="PIN"> <button onclick="unlock()">unlock</button></div><div class="locked" id="perr" style="margin-top:6px"></div>`;
+}
+function showPortfolio(p){
+  const el=document.getElementById('pbody');
+  if(p.error){ el.innerHTML=`<div class="locked">portfolio fetch error: ${p.error}</div>`; return; }
+  const rows=(p.positions||[]).map(x=>`<tr><td>${x.ticker}</td><td>${x.position}</td><td>${money(x.exposure)}</td></tr>`).join('');
+  el.innerHTML=`<div>balance <b class="fav">${money(p.balance_dollars)}</b></div>
+    ${rows?`<table><tr><th>market</th><th>contracts</th><th>exposure</th></tr>${rows}</table>`:'<div class="locked" style="margin-top:8px">no open positions</div>'}`;
+}
+async function unlock(){
+  const pin=document.getElementById('pin').value, p=DATA.portfolio, err=document.getElementById('perr');
+  try{
+    const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+    const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pin),'PBKDF2',false,['deriveKey']);
+    const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:b64(p.salt),iterations:200000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['decrypt']);
+    const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(p.iv)},key,b64(p.data));
+    showPortfolio(JSON.parse(new TextDecoder().decode(pt)));
+  }catch(e){ err.textContent='wrong pin (or bad decrypt)'; }
+}
+async function load(){
+  try{
+    DATA=await (await fetch('data.json?'+Date.now())).json();
+    const ago=Math.round((Date.now()-new Date(DATA.ts).getTime())/60000);
+    document.getElementById('updated').textContent='updated '+(ago<1?'just now':ago+' min ago');
+    render();
+  }catch(e){ document.getElementById('updated').textContent='failed to load data.json'; }
+}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{TAB=t.dataset.s;document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));render();});
+load(); setInterval(load, 60000);
+</script>
+</body>
+</html>
